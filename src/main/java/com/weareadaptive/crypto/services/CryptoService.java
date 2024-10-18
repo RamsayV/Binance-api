@@ -34,25 +34,29 @@ public class CryptoService {
     public Future<GetSymbolsResponseData> handleGetMultipleSymbolsCryptoData(final GetSymbolsDataRequest request) {
         LOG.info("Handling Get Crypto Data request for multiple symbols: {}", request);
 
-        final ValidationResult validationResult = getSymbolsValidator.validate(request);
-        if (validationResult.resultCode() != ValidationResultCode.SUCCESS) {
-            LOG.error("Validation failed: {}", validationResult);
-            return Future.failedFuture(validationResult);
-        }
-
-        return binanceApiClient.getDataForSymbolsWithLib(request.symbols())
+        return Future.succeededFuture(request)
+            .compose(req -> {
+                ValidationResult validationResult = getSymbolsValidator.validate(req);
+                return validationResult.resultCode() == ValidationResultCode.SUCCESS
+                    ? Future.succeededFuture(req)
+                    : Future.failedFuture(validationResult);
+            })
+            .compose(req -> binanceApiClient.getDataForSymbolsWithLib(req.symbols()))
             .map(HandlerUtil::parseSymbolsData);
     }
 
     public Future<GetSymbolDataResponse> handleGetSingleSymbolCryptoData(final GetSymbolDataRequest request) {
         LOG.info("Handling Get Crypto Data request for single symbol: {}", request);
 
-        final ValidationResult validationResult = getSymbolValidator.validate(request);
-        if (validationResult.resultCode() != ValidationResultCode.SUCCESS) {
-            return Future.failedFuture(validationResult);
-        }
-
-        return binanceApiClient.getDataForSymbolWithLib(request.symbol())
+        return Future.succeededFuture(request)
+            .compose(req -> {
+                ValidationResult validationResult = getSymbolValidator.validate(req);
+                return validationResult.resultCode() == ValidationResultCode.SUCCESS
+                    ? Future.succeededFuture(req)
+                    : Future.failedFuture(validationResult);
+                // make sure to had log here when you get issues with studff
+            })
+            .compose(req -> binanceApiClient.getDataForSymbolWithLib(req.symbol()))
             .map(HandlerUtil::parseSymbolData);
     }
 }

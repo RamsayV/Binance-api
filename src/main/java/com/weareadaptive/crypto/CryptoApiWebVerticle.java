@@ -5,7 +5,7 @@ import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
-import com.weareadaptive.crypto.CryptoWebService;
+import com.weareadaptive.crypto.services.CryptoWebService;
 import com.weareadaptive.crypto.services.CryptoService;
 
 public class CryptoApiWebVerticle extends AbstractVerticle {
@@ -23,7 +23,7 @@ public class CryptoApiWebVerticle extends AbstractVerticle {
 
     @Override
     public void start(final Promise<Void> startPromise) {
-        this.cryptoService = new CryptoService(vertx);  // Initialize here with the vertx instance
+        this.cryptoService = new CryptoService(vertx);
 
         final Router router = Router.router(vertx);
         router.route().handler(BodyHandler.create());

@@ -18,6 +18,9 @@ public class BinanceApiClient {
         this.vertx = vertx;
     }
 
+
+    //apparently web client is fully non blocking so look int0 that if you get a second  https://vertx.io/docs/vertx-web-client/java/
+
     public Future<JsonObject> getDataForSymbolWithLib(String symbol) {
         return vertx.executeBlocking(() -> {
             SpotClient client = new SpotClientImpl();

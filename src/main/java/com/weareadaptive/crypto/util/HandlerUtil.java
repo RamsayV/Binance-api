@@ -4,6 +4,7 @@ import com.weareadaptive.crypto.Validation.ValidationResult;
 import com.weareadaptive.crypto.dto.GetSymbolDataResponse;
 import com.weareadaptive.crypto.dto.GetSymbolsResponseData;
 import com.weareadaptive.crypto.model.CryptoTickerData;
+import io.vertx.core.Future;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -14,31 +15,28 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 
-public class HandlerUtil
-{
+public class HandlerUtil {
 
-
-    public static <T> void parseRequest(final RoutingContext routingContext,
-                                        final Class<T> expectedType,
-                                        final BiConsumer<RoutingContext, T> onSuccess,
-                                        final String... pathParameters)
-    {
-        try
-        {
-            final JsonObject jsonObject = routingContext.body().isEmpty() ? new JsonObject() : routingContext.body().asJsonObject();
-            parseRequest(routingContext, jsonObject, expectedType, onSuccess, pathParameters);
-        }
-        catch (final Exception exception)
-        {
-            routingContext.fail(HttpStatusCode.BAD_REQUEST.value(), exception);
-        }
+    public static <T> Future<T> parseRequest(final RoutingContext routingContext,
+                                             final Class<T> expectedType,
+                                             final String... pathParameters) {
+        return Future.future(promise -> {
+            try {
+                final JsonObject jsonObject = routingContext.body().isEmpty() ? new JsonObject() : routingContext.body().asJsonObject();
+                for (final String pathParam : pathParameters) {
+                    jsonObject.put(pathParam, routingContext.pathParam(pathParam));
+                }
+                final T object = jsonObject.mapTo(expectedType);
+                promise.complete(object);
+            } catch (final Exception exception) {
+                promise.fail(new HttpStatusException(HttpStatusCode.BAD_REQUEST.value(), exception.getMessage()));
+            }
+        });
     }
 
-    public static GetSymbolDataResponse parseSymbolData(JsonObject jsonObject)
-    {
+    public static GetSymbolDataResponse parseSymbolData(JsonObject jsonObject) {
         CryptoTickerData cryptoTickerData = new CryptoTickerData(
             jsonObject.getString("symbol"),
             new BigDecimal(jsonObject.getString("lastPrice")),
@@ -52,24 +50,29 @@ public class HandlerUtil
         return new GetSymbolDataResponse(cryptoTickerData);
     }
 
-    public static <T> void parseQueryParamRequest(
+    public static <T> Future<T> parseQueryParamRequest(
         final RoutingContext context,
         final String paramName,
-        final Function<List<String>, T> requestConstructor,
-        final BiConsumer<RoutingContext, T> handler) {
-
-        String param = context.request().getParam(paramName);
-
-        List<String> paramList = Arrays.asList(param.split(","));
-        T request = requestConstructor.apply(paramList);
-        handler.accept(context, request);
+        final Function<List<String>, T> requestConstructor) {
+        return Future.future(promise -> {
+            try {
+                String param = context.request().getParam(paramName);
+                if (param == null || param.isEmpty()) {
+                    promise.fail(new HttpStatusException(HttpStatusCode.BAD_REQUEST.value(), "Missing required query parameter: " + paramName));
+                    return;
+                }
+                List<String> paramList = Arrays.asList(param.split(","));
+                T request = requestConstructor.apply(paramList);
+                promise.complete(request);
+            } catch (Exception e) {
+                promise.fail(new HttpStatusException(HttpStatusCode.BAD_REQUEST.value(), e.getMessage()));
+            }
+        });
     }
 
-    public static GetSymbolsResponseData parseSymbolsData(JsonArray jsonArray)
-    {
+    public static GetSymbolsResponseData parseSymbolsData(JsonArray jsonArray) {
         ArrayList<CryptoTickerData> tickerDataList = new ArrayList<>();
-        for (int i = 0; i < jsonArray.size(); i++)
-        {
+        for (int i = 0; i < jsonArray.size(); i++) {
             JsonObject jsonObject = jsonArray.getJsonObject(i);
             CryptoTickerData cryptoTickerData = new CryptoTickerData(
                 jsonObject.getString("symbol"),
@@ -86,56 +89,39 @@ public class HandlerUtil
         return new GetSymbolsResponseData(tickerDataList);
     }
 
-    public static <T> void parseRequest(final RoutingContext routingContext,
-                                        final JsonObject jsonObject,
-                                        final Class<T> expectedType,
-                                        final BiConsumer<RoutingContext, T> onSuccess,
-                                        final String... pathParameters)
-    {
-        for (final String pathParam : pathParameters)
-        {
-            jsonObject.put(pathParam, routingContext.pathParam(pathParam));
-        }
-
-        final T object = jsonObject.mapTo(expectedType);
-        onSuccess.accept(routingContext, object);
-    }
-
-
-    public static void handleFailure(final RoutingContext routingContext, final Throwable th)
-    {
+    public static void handleFailure(final RoutingContext routingContext, final Throwable th) {
         final HttpServerResponse response = routingContext.response();
-        if (th instanceof ValidationResult failure)
-        {
+        JsonObject errorResponse = new JsonObject();
+
+        if (th instanceof ValidationResult failure) {
             String errorMessage = failure.getMessage() != null ? failure.getMessage() : "An error occurred";
-            switch (failure.resultCode())
-            {
-                case SUCCESS ->
-                {
-                    response.setStatusCode(200)
-                        .setStatusMessage("Operation successful")
-                        .end();
-                }
-                case INVALID_SYMBOL, SYMBOL_DOES_NOT_EXIST ->
-                {
-                    response.setStatusCode(400)
-                        .setStatusMessage(errorMessage)
-                        .end(errorMessage);
-                }
-                default ->
-                {
-                    response.setStatusCode(500)
-                        .setStatusMessage("Internal Server Error")
-                        .end(errorMessage);
-                }
+            int statusCode;
+            switch (failure.resultCode()) {
+                case SYMBOL_DOES_NOT_EXIST,
+                     INVALID_SYMBOL,
+                     INVALID_REQUEST,
+                     RESTRICTED_SYMBOL,
+                     SYMBOL_NOT_SUPPORTED,
+                     DELISTED_SYMBOL,
+                     SYMBOL_CASE_MISMATCH,
+                     DUPLICATE_SYMBOL -> statusCode = 400;
+                default -> statusCode = 500;
             }
+            errorResponse.put("error", errorMessage)
+                .put("code", failure.resultCode().toString())
+                .put("status", statusCode);
+        } else if (th instanceof HttpStatusException httpEx) {
+            errorResponse.put("error", httpEx.getMessage())
+                .put("code", "HTTP_ERROR")
+                .put("status", httpEx.getStatusCode());
+        } else {
+            errorResponse.put("error", "An unexpected error has occurred")
+                .put("code", "INTERNAL_ERROR")
+                .put("status", 500);
         }
-        else
-        {
-            response.setStatusCode(500)
-                .setStatusMessage("An unexpected error has occurred")
-                .end();
-        }
+
+        response.setStatusCode(errorResponse.getInteger("status"))
+            .putHeader("Content-Type", "application/json")
+            .end(errorResponse.encode());
     }
 }
-

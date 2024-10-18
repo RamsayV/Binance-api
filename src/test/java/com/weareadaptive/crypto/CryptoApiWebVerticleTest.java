@@ -15,13 +15,19 @@ import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 @ExtendWith(VertxExtension.class)
 public class CryptoApiWebVerticleTest
@@ -37,23 +43,6 @@ public class CryptoApiWebVerticleTest
     void beforeEach(Vertx vertx, VertxTestContext testContext)
     {
         vertx.deployVerticle(webVerticle).onComplete(f -> testContext.completeNow(), testContext::failNow);
-    }
-
-    @Test
-    void receiveHelloWorld(Vertx vertx, VertxTestContext testContext)
-    {
-
-        final HttpClient client = vertx.createHttpClient();
-        final int port = webVerticle.boundPort();
-
-        client.request(HttpMethod.GET, port, "localhost", "/api/crypto")
-            .compose(req -> req.send().compose(HttpClientResponse::body))
-            .onComplete(testContext.succeeding(buffer -> testContext.verify(() ->
-            {
-                assertThat(buffer.toString()).isEqualTo("Hello world!");
-                testContext.completeNow();
-            })));
-        ;
     }
 
     @Test
@@ -134,4 +123,70 @@ public class CryptoApiWebVerticleTest
             })));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"", "INVALID", "BTC1", "ETH_USD", "TEST", "DEMO"})
+    void singleSymbolUnhappyPathTest(String symbol, Vertx vertx, VertxTestContext testContext) {
+        final String SYMBOL_PATH = "/api/crypto/:symbol";
+        final HttpClient client = vertx.createHttpClient();
+        final int port = webVerticle.boundPort();
+        final String requestUri = SYMBOL_PATH.replace(":symbol", symbol);
+
+        client.request(HttpMethod.GET, port, "localhost", requestUri)
+            .compose(req -> req.send().compose(HttpClientResponse::body))
+            .onComplete(testContext.succeeding(buffer -> testContext.verify(() -> {
+                String responseBody = buffer.toString();
+                System.out.println( responseBody);
+                JsonObject response = new JsonObject(responseBody);
+                assertThat(response.getString("error")).isNotEmpty();
+                assertThat(response.getString("code")).isNotEmpty();
+                assertThat(response.getInteger("status")).isEqualTo(400);
+                testContext.completeNow();
+            })));
+    }
+
+    static Stream<Arguments> multipleSymbolsErrorScenarios() {
+        return Stream.of(
+            arguments("", "Empty symbol list"),
+            arguments("BTCUSDT,INVALID,ETHUSDT", "Invalid symbol"),
+            arguments("TEST,DEMO", "Restricted symbols"),
+            arguments("BTCUSDT,ETHUSDT,XRPUSDT,ADAUSDT,DOGEUSDT,DOTUSDT,UNIUSDT,BCHUSDT,LTCUSDT,LINKUSDT,BTCUSDT,ETHUSDT,XRPUSDT,ADAUSDT,DOGEUSDT,DOTUSDT,UNIUSDT,BCHUSDT,LTCUSDT,LINKUSDT,EXTRA", "Too many symbols")
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("multipleSymbolsErrorScenarios")
+    void multipleSymbolsUnhappyPathTest(String symbols, String scenario, Vertx vertx, VertxTestContext testContext) {
+        final String CRYPTOS_PATH = "/api/crypto";
+        final HttpClient client = vertx.createHttpClient();
+        final int port = webVerticle.boundPort();
+        final String requestUri = CRYPTOS_PATH + "?symbols=" + symbols;
+
+        client.request(HttpMethod.GET, port, "localhost", requestUri)
+            .compose(req -> req.send().compose(HttpClientResponse::body))
+            .onComplete(testContext.succeeding(buffer -> testContext.verify(() -> {
+                JsonObject response = new JsonObject(buffer);
+                assertThat(response.getString("error")).isNotEmpty();
+                assertThat(response.getString("code")).isNotEmpty();
+                assertThat(response.getInteger("status")).isEqualTo(400);
+                System.out.println("Scenario: " + scenario + ", Error: " + response.getString("error"));
+                testContext.completeNow();
+            })));
+    }
+
+    @Test
+    void emptySymbolUnhappyPathTest(Vertx vertx, VertxTestContext testContext) {
+        final String SYMBOL_PATH = "/api/crypto/";
+        final HttpClient client = vertx.createHttpClient();
+        final int port = webVerticle.boundPort();
+
+        client.request(HttpMethod.GET, port, "localhost", SYMBOL_PATH)
+            .compose(req -> req.send().compose(HttpClientResponse::body))
+            .onComplete(testContext.succeeding(buffer -> testContext.verify(() -> {
+                JsonObject response = new JsonObject(buffer);
+                assertThat(response.getString("error")).isNotEmpty();
+                assertThat(response.getString("code")).isNotEmpty();
+                assertThat(response.getInteger("status")).isEqualTo(400);
+                testContext.completeNow();
+            })));
+    }
 }

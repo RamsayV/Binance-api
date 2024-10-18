@@ -1,9 +1,12 @@
-package com.weareadaptive.crypto;
+package com.weareadaptive.crypto.services;
 
 import com.weareadaptive.crypto.Validation.GetSymbolValidator;
+import com.weareadaptive.crypto.Validation.ValidationResult;
+import com.weareadaptive.crypto.Validation.ValidationResultCode;
 import com.weareadaptive.crypto.dto.GetSymbolDataRequest;
 import com.weareadaptive.crypto.dto.GetSymbolsDataRequest;
 import com.weareadaptive.crypto.util.HandlerUtil;
+import io.vertx.core.Future;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
@@ -35,31 +38,37 @@ public class CryptoWebService
         router.get(CRYPTO_PATH).handler(cryptoWebService::handleGetSingleSymbolCryptoData);
     }
 
-    public void handleGetMultipleSymbolsCryptoData(final RoutingContext context) {
+    public void handleGetMultipleSymbolsCryptoData(final RoutingContext context)
+    {
         HandlerUtil.parseQueryParamRequest(
-            context,
-            "symbols",
-            symbols -> new GetSymbolsDataRequest(new ArrayList<>(symbols)),
-            this::processMultipleSymbolsRequest
-        );
-    }
-
-    private void processMultipleSymbolsRequest(final RoutingContext context, final GetSymbolsDataRequest request) {
-        LOG.info("Received request for crypto data with multiple symbols: {}", request);
-
-        cryptoService.handleGetMultipleSymbolsCryptoData(request)
+                context,
+                "symbols",
+                symbols -> new GetSymbolsDataRequest(new ArrayList<>(symbols))
+            )
+            .compose(request ->
+            {
+                LOG.info("Received request for crypto data with multiple symbols: {}", request);
+                return cryptoService.handleGetMultipleSymbolsCryptoData(request);
+            })
             .onSuccess(result -> context.json(JsonObject.mapFrom(result)))
             .onFailure(failure -> HandlerUtil.handleFailure(context, failure));
     }
 
-    public void handleGetSingleSymbolCryptoData(final RoutingContext context) {
-        HandlerUtil.parseRequest(context, GetSymbolDataRequest.class, this::processSingleSymbolRequest, "symbol");
-    }
+    public void handleGetSingleSymbolCryptoData(final RoutingContext context)
+    {
+        String symbol = context.pathParam("symbol");
+        if (symbol == null || symbol.trim().isEmpty())
+        {
+            HandlerUtil.handleFailure(context, new ValidationResult(ValidationResultCode.SYMBOL_DOES_NOT_EXIST, "Symbol cannot be empty"));
+            return;
+        }
 
-    private void processSingleSymbolRequest(final RoutingContext context, final GetSymbolDataRequest request) {
-        LOG.info("Received request for crypto data with single symbol: {}", request);
-
-        cryptoService.handleGetSingleSymbolCryptoData(request)
+        HandlerUtil.parseRequest(context, GetSymbolDataRequest.class, "symbol")
+            .compose(request ->
+            {
+                LOG.info("Received request for crypto data with single symbol: {}", request);
+                return cryptoService.handleGetSingleSymbolCryptoData(request);
+            })
             .onSuccess(result -> context.json(JsonObject.mapFrom(result)))
             .onFailure(failure -> HandlerUtil.handleFailure(context, failure));
     }
