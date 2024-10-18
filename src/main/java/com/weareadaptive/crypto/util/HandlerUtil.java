@@ -42,16 +42,30 @@ public class HandlerUtil {
     public static GetSymbolDataResponse parseSymbolData(JsonObject jsonObject) {
         CryptoTickerData cryptoTickerData = new CryptoTickerData(
             jsonObject.getString("symbol"),
-            new BigDecimal(jsonObject.getString("lastPrice")),
-            new BigDecimal(jsonObject.getString("openPrice")),
-            new BigDecimal(jsonObject.getString("priceChange")),
-            new BigDecimal(jsonObject.getString("priceChangePercent")),
-            new BigDecimal(jsonObject.getString("highPrice")),
-            new BigDecimal(jsonObject.getString("lowPrice")),
-            new BigDecimal(jsonObject.getString("volume")),
+            Double.parseDouble(jsonObject.getString("lastPrice")),
+            Double.parseDouble(jsonObject.getString("openPrice")),
+            Double.parseDouble(jsonObject.getString("lowPrice")),
+            Double.parseDouble(jsonObject.getString("highPrice")),
             Instant.ofEpochMilli(jsonObject.getLong("closeTime"))
         );
         return new GetSymbolDataResponse(cryptoTickerData);
+    }
+
+    public static GetSymbolsResponseData parseSymbolsData(JsonArray jsonArray) {
+        ArrayList<CryptoTickerData> tickerDataList = new ArrayList<>();
+        for (int i = 0; i < jsonArray.size(); i++) {
+            JsonObject jsonObject = jsonArray.getJsonObject(i);
+            CryptoTickerData cryptoTickerData = new CryptoTickerData(
+                jsonObject.getString("symbol"),
+                Double.parseDouble(jsonObject.getString("lastPrice")),
+                Double.parseDouble(jsonObject.getString("openPrice")),
+                Double.parseDouble(jsonObject.getString("lowPrice")),
+                Double.parseDouble(jsonObject.getString("highPrice")),
+                Instant.ofEpochMilli(jsonObject.getLong("closeTime"))
+            );
+            tickerDataList.add(cryptoTickerData);
+        }
+        return new GetSymbolsResponseData(tickerDataList);
     }
 
     public static <T> Future<T> parseQueryParamRequest(final RoutingContext context,
@@ -73,25 +87,6 @@ public class HandlerUtil {
         });
     }
 
-    public static GetSymbolsResponseData parseSymbolsData(JsonArray jsonArray) {
-        ArrayList<CryptoTickerData> tickerDataList = new ArrayList<>();
-        for (int i = 0; i < jsonArray.size(); i++) {
-            JsonObject jsonObject = jsonArray.getJsonObject(i);
-            CryptoTickerData cryptoTickerData = new CryptoTickerData(
-                jsonObject.getString("symbol"),
-                new BigDecimal(jsonObject.getString("lastPrice")),
-                new BigDecimal(jsonObject.getString("openPrice")),
-                new BigDecimal(jsonObject.getString("priceChange")),
-                new BigDecimal(jsonObject.getString("priceChangePercent")),
-                new BigDecimal(jsonObject.getString("highPrice")),
-                new BigDecimal(jsonObject.getString("lowPrice")),
-                new BigDecimal(jsonObject.getString("volume")),
-                Instant.ofEpochMilli(jsonObject.getLong("closeTime"))
-            );
-            tickerDataList.add(cryptoTickerData);
-        }
-        return new GetSymbolsResponseData(tickerDataList);
-    }
 
     public static void handleFailure(final RoutingContext routingContext, final Throwable th) {
         final HttpServerResponse response = routingContext.response();

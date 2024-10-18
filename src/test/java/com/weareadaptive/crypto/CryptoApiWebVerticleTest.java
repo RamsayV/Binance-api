@@ -20,7 +20,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -65,19 +64,9 @@ public class CryptoApiWebVerticleTest
                 assertThat(cryptoTickerData).isNotNull();
                 assertThat(cryptoTickerData.symbol()).isEqualTo(request.symbol());
 
-                assertThat(cryptoTickerData.lastPrice()).isInstanceOf(BigDecimal.class);
-                assertThat(cryptoTickerData.openPrice()).isInstanceOf(BigDecimal.class);
-                assertThat(cryptoTickerData.priceChange()).isInstanceOf(BigDecimal.class);
-                assertThat(cryptoTickerData.priceChangePercent()).isInstanceOf(BigDecimal.class);
-                assertThat(cryptoTickerData.highPrice()).isInstanceOf(BigDecimal.class);
-                assertThat(cryptoTickerData.lowPrice()).isInstanceOf(BigDecimal.class);
-                assertThat(cryptoTickerData.volume()).isInstanceOf(BigDecimal.class);
-                assertThat(cryptoTickerData.closeTime()).isInstanceOf(Instant.class);
-
-                assertThat(cryptoTickerData.lastPrice()).isGreaterThan(BigDecimal.ZERO);
-                assertThat(cryptoTickerData.openPrice()).isGreaterThan(BigDecimal.ZERO);
-                assertThat(cryptoTickerData.highPrice()).isGreaterThan(cryptoTickerData.lowPrice());
-                assertThat(cryptoTickerData.volume()).isGreaterThan(BigDecimal.ZERO);
+                assertThat(cryptoTickerData.price()).isGreaterThan(0.0);
+                assertThat(cryptoTickerData.open()).isGreaterThan(0.0);
+                assertThat(cryptoTickerData.high()).isGreaterThan(cryptoTickerData.low());
                 assertThat(cryptoTickerData.closeTime()).isLessThan(Instant.now());
 
                 testContext.completeNow();
@@ -99,7 +88,7 @@ public class CryptoApiWebVerticleTest
             .compose(req -> req.send().compose(HttpClientResponse::body))
             .onComplete(testContext.succeeding(buffer -> testContext.verify(() -> {
                 GetSymbolsResponseData response = JsonObject.mapFrom(new JsonObject(buffer)).mapTo(GetSymbolsResponseData.class);
-                List<CryptoTickerData> cryptoTickerDataList = response.symbolsTickerData();
+                List<CryptoTickerData> cryptoTickerDataList = response.cryptoTickersData();
 
                 assertThat(cryptoTickerDataList).isNotNull();
 
@@ -107,19 +96,9 @@ public class CryptoApiWebVerticleTest
                     assertThat(cryptoTickerData).isNotNull();
                     assertThat(symbols).contains(cryptoTickerData.symbol());
 
-                    assertThat(cryptoTickerData.lastPrice()).isInstanceOf(BigDecimal.class);
-                    assertThat(cryptoTickerData.openPrice()).isInstanceOf(BigDecimal.class);
-                    assertThat(cryptoTickerData.priceChange()).isInstanceOf(BigDecimal.class);
-                    assertThat(cryptoTickerData.priceChangePercent()).isInstanceOf(BigDecimal.class);
-                    assertThat(cryptoTickerData.highPrice()).isInstanceOf(BigDecimal.class);
-                    assertThat(cryptoTickerData.lowPrice()).isInstanceOf(BigDecimal.class);
-                    assertThat(cryptoTickerData.volume()).isInstanceOf(BigDecimal.class);
-                    assertThat(cryptoTickerData.closeTime()).isInstanceOf(Instant.class);
-
-                    assertThat(cryptoTickerData.lastPrice()).isGreaterThan(BigDecimal.ZERO);
-                    assertThat(cryptoTickerData.openPrice()).isGreaterThan(BigDecimal.ZERO);  // New assertion
-                    assertThat(cryptoTickerData.highPrice()).isGreaterThan(cryptoTickerData.lowPrice());
-                    assertThat(cryptoTickerData.volume()).isGreaterThan(BigDecimal.ZERO);
+                    assertThat(cryptoTickerData.price()).isGreaterThan(0.0);
+                    assertThat(cryptoTickerData.open()).isGreaterThan(0.0);
+                    assertThat(cryptoTickerData.high()).isGreaterThan(cryptoTickerData.low());
                     assertThat(cryptoTickerData.closeTime()).isLessThan(Instant.now());
                 }
 

@@ -4,6 +4,6 @@ import com.weareadaptive.crypto.model.CryptoTickerData;
 
 import java.util.ArrayList;
 
-public record GetSymbolsResponseData(ArrayList<CryptoTickerData> symbolsTickerData)
+public record GetSymbolsResponseData(ArrayList<CryptoTickerData> cryptoTickersData)
 {
 }
