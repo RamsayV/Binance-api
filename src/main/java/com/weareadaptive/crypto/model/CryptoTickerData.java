@@ -5,6 +5,7 @@ import java.time.Instant;
 
 public record CryptoTickerData(String symbol,
                                BigDecimal lastPrice,
+                               BigDecimal openPrice,
                                BigDecimal priceChange,
                                BigDecimal priceChangePercent,
                                BigDecimal highPrice,

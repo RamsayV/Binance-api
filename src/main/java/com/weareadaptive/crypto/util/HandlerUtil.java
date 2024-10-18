@@ -36,10 +36,14 @@ public class HandlerUtil {
         });
     }
 
+
+    //These might actually be better placed in a helper folder but they are also parsing data so keep em here for the time being
+    // Not worth turning that crypto tickerdata parser into a function when using twice
     public static GetSymbolDataResponse parseSymbolData(JsonObject jsonObject) {
         CryptoTickerData cryptoTickerData = new CryptoTickerData(
             jsonObject.getString("symbol"),
             new BigDecimal(jsonObject.getString("lastPrice")),
+            new BigDecimal(jsonObject.getString("openPrice")),
             new BigDecimal(jsonObject.getString("priceChange")),
             new BigDecimal(jsonObject.getString("priceChangePercent")),
             new BigDecimal(jsonObject.getString("highPrice")),
@@ -59,7 +63,7 @@ public class HandlerUtil {
                 if (param == null || param.isEmpty()) {
                     promise.fail(new HttpStatusException(HttpStatusCode.BAD_REQUEST.value(), "Missing required query parameter: " + paramName));
                     return;
-                }  // this scould probably be handled elsewhere
+                }  // this could probably be handled elsewhere
                 List<String> paramList = Arrays.asList(param.split(","));
                 T request = requestConstructor.apply(paramList);
                 promise.complete(request);
@@ -76,6 +80,7 @@ public class HandlerUtil {
             CryptoTickerData cryptoTickerData = new CryptoTickerData(
                 jsonObject.getString("symbol"),
                 new BigDecimal(jsonObject.getString("lastPrice")),
+                new BigDecimal(jsonObject.getString("openPrice")),
                 new BigDecimal(jsonObject.getString("priceChange")),
                 new BigDecimal(jsonObject.getString("priceChangePercent")),
                 new BigDecimal(jsonObject.getString("highPrice")),
