@@ -6,7 +6,8 @@ import java.util.Set;
 public enum BinanceSymbols
 
 
-    // leave this in case you find a use for it but right now you just ignore
+    // I found this list on STACK Overflow and might not be comprehensive for what they now
+
 {
 
         BTC, LTC, ETH, NEO, BNB, QTUM, EOS, SNT, BNT, GAS, BCC, USDT, HSR, OAX, DNT, MCO, ICN,

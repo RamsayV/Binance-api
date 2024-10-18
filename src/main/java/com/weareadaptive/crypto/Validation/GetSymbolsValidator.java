@@ -12,7 +12,7 @@ public class GetSymbolsValidator {
     private static final int MIN_SYMBOL_LENGTH = 2;
     private static final Set<String> RESTRICTED_SYMBOLS = Set.of("TEST", "DEMO", "INVALID");
     private static final Set<String> DELISTED_SYMBOLS = Set.of("BCC", "BCHABC", "BCHSV"); // TODO: Update this list with more delisted symbols
-    private static final int MAX_SYMBOLS_PER_REQUEST = 100; // Adjust this value based on your API limits
+    private static final int MAX_SYMBOLS_PER_REQUEST = 10;
 
     public ValidationResult validate(GetSymbolsDataRequest request) {
         if (request == null || request.symbols() == null) {
@@ -31,45 +31,54 @@ public class GetSymbolsValidator {
         Set<String> uniqueSymbols = new HashSet<>();
 
         for (String symbol : request.symbols()) {
-            if (symbol == null) {
-                return ValidationResult.failure(ValidationResultCode.INVALID_SYMBOL, "Symbol cannot be null");
+            ValidationResult result = validateSingleSymbol(symbol, uniqueSymbols);
+            if (result.resultCode() != ValidationResultCode.SUCCESS) {
+                return result;
             }
+        }
 
-            symbol = symbol.trim().toUpperCase();
+        return ValidationResult.success();
+    }
 
-            if (symbol.isEmpty()) {
-                return ValidationResult.failure(ValidationResultCode.INVALID_SYMBOL, "Symbol cannot be empty");
-            }
+    private ValidationResult validateSingleSymbol(String symbol, Set<String> uniqueSymbols) {
+        if (symbol == null) {
+            return ValidationResult.failure(ValidationResultCode.INVALID_SYMBOL, "Symbol cannot be null");
+        }
 
-            if (symbol.length() < MIN_SYMBOL_LENGTH) {
-                return ValidationResult.failure(ValidationResultCode.INVALID_SYMBOL,
-                    "Symbol '" + symbol + "' length is less than the minimum allowed length of " + MIN_SYMBOL_LENGTH);
-            }
+        symbol = symbol.trim().toUpperCase();
 
-            if (symbol.length() > MAX_SYMBOL_LENGTH) {
-                return ValidationResult.failure(ValidationResultCode.INVALID_SYMBOL,
-                    "Symbol '" + symbol + "' length exceeds maximum allowed length of " + MAX_SYMBOL_LENGTH);
-            }
+        if (symbol.isEmpty()) {
+            return ValidationResult.failure(ValidationResultCode.INVALID_SYMBOL, "Symbol cannot be empty");
+        }
 
-            if (!VALID_SYMBOL_PATTERN.matcher(symbol).matches()) {
-                return ValidationResult.failure(ValidationResultCode.INVALID_SYMBOL,
-                    "Symbol '" + symbol + "' must contain only uppercase letters and numbers, and be between 2 and 12 characters long");
-            }
+        if (symbol.length() < MIN_SYMBOL_LENGTH || symbol.length() > MAX_SYMBOL_LENGTH) {
+            return ValidationResult.failure(ValidationResultCode.INVALID_SYMBOL,
+                String.format("Symbol '%s' length must be between %d and %d characters", symbol, MIN_SYMBOL_LENGTH, MAX_SYMBOL_LENGTH));
+        }
 
-            if (RESTRICTED_SYMBOLS.contains(symbol)) {
-                return ValidationResult.failure(ValidationResultCode.RESTRICTED_SYMBOL,
-                    "Symbol '" + symbol + "' is restricted and cannot be used");
-            }
+        if (!VALID_SYMBOL_PATTERN.matcher(symbol).matches()) {
+            return ValidationResult.failure(ValidationResultCode.INVALID_SYMBOL,
+                String.format("Symbol '%s' must contain only uppercase letters and numbers", symbol));
+        }
 
-            if (DELISTED_SYMBOLS.contains(symbol)) {
-                return ValidationResult.failure(ValidationResultCode.DELISTED_SYMBOL,
-                    "Symbol '" + symbol + "' has been delisted and is no longer available");
-            }
+        if (RESTRICTED_SYMBOLS.contains(symbol)) {
+            return ValidationResult.failure(ValidationResultCode.RESTRICTED_SYMBOL,
+                String.format("Symbol '%s' is restricted and cannot be used", symbol));
+        }
 
-            if (!uniqueSymbols.add(symbol)) {
-                return ValidationResult.failure(ValidationResultCode.DUPLICATE_SYMBOL,
-                    "Duplicate symbol found: " + symbol);
-            }
+        if (DELISTED_SYMBOLS.contains(symbol)) {
+            return ValidationResult.failure(ValidationResultCode.DELISTED_SYMBOL,
+                String.format("Symbol '%s' has been delisted and is no longer available", symbol));
+        }
+
+        if (!uniqueSymbols.add(symbol)) {
+            return ValidationResult.failure(ValidationResultCode.DUPLICATE_SYMBOL,
+                String.format("Duplicate symbol found: %s", symbol));
+        }
+
+        if (!BinanceSymbols.contains(symbol)) {
+            return ValidationResult.failure(ValidationResultCode.INVALID_SYMBOL,
+                String.format("Symbol '%s' is not a valid Binance trading symbol", symbol));
         }
 
         return ValidationResult.success();

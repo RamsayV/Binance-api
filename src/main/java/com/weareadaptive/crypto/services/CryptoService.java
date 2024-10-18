@@ -54,7 +54,7 @@ public class CryptoService {
                 return validationResult.resultCode() == ValidationResultCode.SUCCESS
                     ? Future.succeededFuture(req)
                     : Future.failedFuture(validationResult);
-                // make sure to had log here when you get issues with studff
+                // make sure to have logs here when you get issues with stuff
             })
             .compose(req -> binanceApiClient.getDataForSymbolWithLib(req.symbol()))
             .map(HandlerUtil::parseSymbolData);

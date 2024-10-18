@@ -50,17 +50,16 @@ public class HandlerUtil {
         return new GetSymbolDataResponse(cryptoTickerData);
     }
 
-    public static <T> Future<T> parseQueryParamRequest(
-        final RoutingContext context,
-        final String paramName,
-        final Function<List<String>, T> requestConstructor) {
+    public static <T> Future<T> parseQueryParamRequest(final RoutingContext context,
+                                                       final String paramName,
+                                                       final Function<List<String>, T> requestConstructor) {
         return Future.future(promise -> {
             try {
                 String param = context.request().getParam(paramName);
                 if (param == null || param.isEmpty()) {
                     promise.fail(new HttpStatusException(HttpStatusCode.BAD_REQUEST.value(), "Missing required query parameter: " + paramName));
                     return;
-                }
+                }  // this scould probably be handled elsewhere
                 List<String> paramList = Arrays.asList(param.split(","));
                 T request = requestConstructor.apply(paramList);
                 promise.complete(request);
@@ -94,7 +93,7 @@ public class HandlerUtil {
         JsonObject errorResponse = new JsonObject();
 
         if (th instanceof ValidationResult failure) {
-            String errorMessage = failure.getMessage() != null ? failure.getMessage() : "An error occurred";
+            String errorMessage = failure.getMessage() != null ? failure.getMessage() : "An error occurred and you need to Log to find out cause it hasn't been accounted for";
             int statusCode;
             switch (failure.resultCode()) {
                 case SYMBOL_DOES_NOT_EXIST,
@@ -106,7 +105,7 @@ public class HandlerUtil {
                      SYMBOL_CASE_MISMATCH,
                      DUPLICATE_SYMBOL -> statusCode = 400;
                 default -> statusCode = 500;
-            }
+            }  // creating an error message in json object is a nice way of doing it imo
             errorResponse.put("error", errorMessage)
                 .put("code", failure.resultCode().toString())
                 .put("status", statusCode);

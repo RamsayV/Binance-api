@@ -20,7 +20,7 @@ import com.weareadaptive.crypto.services.CryptoService;
 public class CryptoWebService
 {
     private static final Logger LOG = LoggerFactory.getLogger(CryptoWebService.class);
-    public static final String BASE_PATH = "/api/crypto/*";
+    public static final String BASE_PATH = "/api/crypto/*";      // you might need this for auth later on
     public static final String CRYPTOS_PATH = "/api/crypto";
     public static final String CRYPTO_PATH = "/api/crypto/:symbol";
 
@@ -40,11 +40,7 @@ public class CryptoWebService
 
     public void handleGetMultipleSymbolsCryptoData(final RoutingContext context)
     {
-        HandlerUtil.parseQueryParamRequest(
-                context,
-                "symbols",
-                symbols -> new GetSymbolsDataRequest(new ArrayList<>(symbols))
-            )
+        HandlerUtil.parseQueryParamRequest(context, "symbols", symbols -> new GetSymbolsDataRequest(new ArrayList<>(symbols)))
             .compose(request ->
             {
                 LOG.info("Received request for crypto data with multiple symbols: {}", request);
@@ -56,13 +52,6 @@ public class CryptoWebService
 
     public void handleGetSingleSymbolCryptoData(final RoutingContext context)
     {
-        String symbol = context.pathParam("symbol");
-        if (symbol == null || symbol.trim().isEmpty())
-        {
-            HandlerUtil.handleFailure(context, new ValidationResult(ValidationResultCode.SYMBOL_DOES_NOT_EXIST, "Symbol cannot be empty"));
-            return;
-        }
-
         HandlerUtil.parseRequest(context, GetSymbolDataRequest.class, "symbol")
             .compose(request ->
             {
